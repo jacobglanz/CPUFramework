@@ -32,6 +32,20 @@ namespace CPUFramework
             GetDateTable(sql);
         }
 
+        public static int GetFirstColumnFirstRowValue(string sql)
+        {
+            int n = 0;
+            DataTable dt = GetDateTable(sql);
+            if(dt.Columns.Count > 0 && dt.Rows.Count > 0)
+            {
+                if(dt.Rows[0][0] != DBNull.Value)
+                {
+                    int.TryParse(dt.Rows[0][0].ToString(), out n);
+                }                
+            }
+            return n;
+        }
+
         private static void SetAllColumnsAllowNull(DataTable dt)
         {
             foreach(DataColumn c in dt.Columns)
