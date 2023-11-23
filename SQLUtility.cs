@@ -22,9 +22,24 @@ namespace CPUFramework
             return cmd;
         }
 
-        public static DataTable GetDateTable(SqlCommand cmd)
+        public static DataTable GetDataTable(SqlCommand cmd)
         {
             return DoExecuteSQL(cmd, true);
+        }
+
+        public static DataTable GetDataTable(string sqlstatment)
+        {
+            return DoExecuteSQL(new SqlCommand(sqlstatment), true);
+        }
+        
+        public static void ExecuteSQL(SqlCommand cmd)
+        {
+            DoExecuteSQL(cmd, false);
+        }
+
+        public static void ExecuteSQL(string sql)
+        {
+            GetDataTable(sql);
         }
 
         private static DataTable DoExecuteSQL(SqlCommand cmd, bool loadDataTable)
@@ -55,21 +70,6 @@ namespace CPUFramework
             }
             SetAllColumnsAllowNull(dt);
             return dt;
-        }
-
-        public static DataTable GetDataTable(string sqlstatment)
-        {
-            return DoExecuteSQL(new SqlCommand(sqlstatment), true);
-        }
-
-        public static void ExecuteSQL(string sql)
-        {
-            GetDataTable(sql);
-        }
-
-        public static void ExecuteSQL(SqlCommand cmd)
-        {
-            DoExecuteSQL(cmd, false);
         }
 
         public static void SetParamValue(SqlCommand cmd, string paramName, object value)
