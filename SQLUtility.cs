@@ -24,6 +24,11 @@ namespace CPUFramework
 
         public static DataTable GetDateTable(SqlCommand cmd)
         {
+            return DoExecuteSQL(cmd, true);
+        }
+
+        private static DataTable DoExecuteSQL(SqlCommand cmd, bool loadDataTable)
+        {
             DataTable dt = new();
             using (SqlConnection conn = new(ConnectionString))
             {
@@ -33,26 +38,50 @@ namespace CPUFramework
                 try
                 {
                     SqlDataReader dr = cmd.ExecuteReader();
-                    dt.Load(dr);
+                    if (loadDataTable)
+                    {
+                        dt.Load(dr);
+                    }
                 }
                 catch (SqlException ex)
                 {
                     string msg = ParseConstraintMsg(ex.Message);
                     throw new Exception(msg);
                 }
+                catch (InvalidCastException ex)
+                {
+                    throw new Exception($"{cmd.CommandText}: {ex.Message}");
+                }
             }
             SetAllColumnsAllowNull(dt);
             return dt;
         }
 
-        public static DataTable GetDateTable(string sqlstatment)
+        public static DataTable GetDataTable(string sqlstatment)
         {
-            return GetDateTable(new SqlCommand(sqlstatment));
+            return DoExecuteSQL(new SqlCommand(sqlstatment), true);
         }
 
         public static void ExecuteSQL(string sql)
         {
-            GetDateTable(sql);
+            GetDataTable(sql);
+        }
+
+        public static void ExecuteSQL(SqlCommand cmd)
+        {
+            DoExecuteSQL(cmd, false);
+        }
+
+        public static void SetParamValue(SqlCommand cmd, string paramName, object value)
+        {
+            try
+            {
+                cmd.Parameters[paramName].Value = value;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{cmd.CommandText}: {ex.Message}", ex);
+            }
         }
 
         private static string ParseConstraintMsg(string msg)
@@ -86,6 +115,14 @@ namespace CPUFramework
                 {
                     msg = msg.Substring(0, position);
                     msg = msg.Replace("_", " ") + msgEnd;
+                    if (prefix == "f_")
+                    {
+                        var words = msg.Split(" ");
+                        if(words.Length > 1)
+                        {
+                            msg = $"Cannot delete {words[0]} becaue it has a related {words[1]} record";
+                        }
+                    }
                 }
             }
             return msg;
@@ -94,7 +131,7 @@ namespace CPUFramework
         public static int GetFirstColumnFirstRowValue(string sql)
         {
             int n = 0;
-            DataTable dt = GetDateTable(sql);
+            DataTable dt = GetDataTable(sql);
             if (dt.Columns.Count > 0 && dt.Rows.Count > 0)
             {
                 if (dt.Rows[0][0] != DBNull.Value)
