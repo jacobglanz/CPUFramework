@@ -31,7 +31,7 @@ namespace CPUFramework
         {
             return DoExecuteSQL(new SqlCommand(sqlstatment), true);
         }
-        
+
         public static void ExecuteSQL(SqlCommand cmd)
         {
             DoExecuteSQL(cmd, false);
@@ -53,6 +53,7 @@ namespace CPUFramework
                 try
                 {
                     SqlDataReader dr = cmd.ExecuteReader();
+                    CheckReturnValue(cmd);
                     if (loadDataTable)
                     {
                         dt.Load(dr);
@@ -70,6 +71,41 @@ namespace CPUFramework
             }
             SetAllColumnsAllowNull(dt);
             return dt;
+        }
+
+        private static void CheckReturnValue(SqlCommand cmd)
+        {
+            int returnValue = 0;
+            string msg = "";
+            if (cmd.CommandType == CommandType.StoredProcedure)
+            {
+
+                foreach (SqlParameter p in cmd.Parameters)
+                {
+                    if (p.Direction == ParameterDirection.ReturnValue)
+                    {
+                        if (p.Value != null)
+                        {
+                            returnValue = (int)p.Value;
+                        }
+                    }
+                    else if (p.ParameterName.ToLower() == "@message")
+                    {
+                        if (p.Value != null)
+                        {
+                            msg = p.Value.ToString();
+                        }
+                    }
+                }
+                if (msg == "")
+                {
+                    msg = $"{cmd.CommandText} did not do requested action";
+                }
+                if (returnValue == 1)
+                {
+                    throw new Exception(msg);
+                }
+            }
         }
 
         public static void SetParamValue(SqlCommand cmd, string paramName, object value)
@@ -118,7 +154,7 @@ namespace CPUFramework
                     if (prefix == "f_")
                     {
                         var words = msg.Split(" ");
-                        if(words.Length > 1)
+                        if (words.Length > 1)
                         {
                             msg = $"Cannot delete {words[0]} becaue it has a related {words[1]} record";
                         }
