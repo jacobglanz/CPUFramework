@@ -204,6 +204,35 @@ namespace CPUFramework
             return n;
         }
 
+        public static int GetValueFromFirstRowAsInt(DataTable dt, string columnName)
+        {
+            int value = 0;
+            if(dt.Rows.Count > 0)
+            {
+                DataRow r = dt.Rows[0];
+                if (r[columnName] != null && r[columnName] is int)
+                {
+                    value = (int)r[columnName];
+
+                }
+            }
+            return value;
+        }
+
+        public static string GetValueFromFirstRowAsString(DataTable dt, string columnName)
+        {
+            string value = "";
+            if (dt.Rows.Count > 0)
+            {
+                DataRow r = dt.Rows[0];
+                if (r[columnName] != null && r[columnName] is string)
+                {
+                    value = (string)r[columnName];
+                }
+            }
+            return value;
+        }
+
         private static void SetAllColumnsAllowNull(DataTable dt)
         {
             foreach (DataColumn c in dt.Columns)
