@@ -42,7 +42,17 @@ namespace CPUFramework
             GetDataTable(sql);
         }
 
-        public static void SaveDateRow(DataRow dr, string sprocname)
+        public static void SaveDataTable(DataTable dt, string sprocName)
+        {
+            var rows = dt.Select("", "", DataViewRowState.Added | DataViewRowState.ModifiedCurrent);
+            foreach(DataRow r in rows)
+            {
+                SaveDateRow(r, sprocName, false);
+            }
+            dt.AcceptChanges();
+        }
+
+        public static void SaveDateRow(DataRow dr, string sprocname, bool acceptChanges = true)
         {
             SqlCommand cmd = GetSQLCommand(sprocname);
             foreach (DataColumn column in dr.Table.Columns)
@@ -54,7 +64,6 @@ namespace CPUFramework
                 }
             }
             DoExecuteSQL(cmd, false);
-
             foreach (SqlParameter p in cmd.Parameters)
             {
                 if (p.Direction == ParameterDirection.InputOutput)
@@ -65,6 +74,10 @@ namespace CPUFramework
                         dr[col] = p.Value;
                     }
                 }
+            }
+            if (acceptChanges)
+            {
+                dr.Table.AcceptChanges();
             }
         }
 
@@ -95,7 +108,7 @@ namespace CPUFramework
                     throw new Exception($"{cmd.CommandText}: {ex.Message}");
                 }
             }
-            SetAllColumnsAllowNull(dt);
+            SetAllColumnsProPerties(dt);
             return dt;
         }
 
@@ -151,6 +164,7 @@ namespace CPUFramework
             string origMsg = msg;
             string prefix = "ck_";
             string msgEnd = "";
+            string notNullPrefix = "Cannot insert the value NULL into column ";
             if (!msg.Contains(prefix))
             {
                 if (msg.Contains("u_"))
@@ -161,6 +175,10 @@ namespace CPUFramework
                 else if (msg.Contains("f_"))
                 {
                     prefix = "f_";
+                }
+                else if (msg.Contains(notNullPrefix))
+                {
+                    msgEnd = "cannot be blank";
                 }
             }
             if (msg.Contains(prefix))
@@ -233,12 +251,23 @@ namespace CPUFramework
             return value;
         }
 
-        private static void SetAllColumnsAllowNull(DataTable dt)
+        private static void SetAllColumnsProPerties(DataTable dt)
         {
             foreach (DataColumn c in dt.Columns)
             {
                 c.AllowDBNull = true;
+                c.AutoIncrement = false;
             }
+        }
+
+        public static bool TableHasChanges(DataTable dt)
+        {
+            bool b = false;
+            if(dt.GetChanges() != null)
+            {
+                b = true;
+            }
+            return b;
         }
 
         public static string GetSQL(SqlCommand cmd)
@@ -274,7 +303,6 @@ namespace CPUFramework
             val = sb.ToString();
 #endif
             return val;
-
         }
 
         public static void DebugPrintDataTable(DataTable dt)
