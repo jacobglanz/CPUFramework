@@ -108,7 +108,7 @@ namespace CPUFramework
                     throw new Exception($"{cmd.CommandText}: {ex.Message}");
                 }
             }
-            SetAllColumnsProPerties(dt);
+            SetAllColumnsProperties(dt);
             return dt;
         }
 
@@ -240,7 +240,7 @@ namespace CPUFramework
         public static string GetValueFromFirstRowAsString(DataTable dt, string columnName)
         {
             string value = "";
-            if (dt.Rows.Count > 0)
+            if (dt.Rows != null && dt.Rows.Count > 0)
             {
                 DataRow r = dt.Rows[0];
                 if (r[columnName] != null && r[columnName] is string)
@@ -251,7 +251,7 @@ namespace CPUFramework
             return value;
         }
 
-        private static void SetAllColumnsProPerties(DataTable dt)
+        private static void SetAllColumnsProperties(DataTable dt)
         {
             foreach (DataColumn c in dt.Columns)
             {
