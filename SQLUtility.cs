@@ -27,9 +27,9 @@ namespace CPUFramework
             return DoExecuteSQL(cmd, true);
         }
 
-        public static DataTable GetDataTable(string sqlstatment)
+        public static DataTable GetDataTable(string sqlStatment)
         {
-            return DoExecuteSQL(new SqlCommand(sqlstatment), true);
+            return DoExecuteSQL(new SqlCommand(sqlStatment), true);
         }
 
         public static void ExecuteSQL(SqlCommand cmd)
@@ -52,9 +52,9 @@ namespace CPUFramework
             dt.AcceptChanges();
         }
 
-        public static void SaveDateRow(DataRow dr, string sprocname, bool acceptChanges = true)
+        public static void SaveDateRow(DataRow dr, string sprocName, bool acceptChanges = true)
         {
-            SqlCommand cmd = GetSQLCommand(sprocname);
+            SqlCommand cmd = GetSQLCommand(sprocName);
             foreach (DataColumn column in dr.Table.Columns)
             {
                 string paramNsme = "@" + column;
