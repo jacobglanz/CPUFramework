@@ -178,7 +178,8 @@ namespace CPUFramework
                 }
                 else if (msg.Contains(notNullPrefix))
                 {
-                    msgEnd = "cannot be blank";
+                    prefix = "Cannot insert the value NULL into column '";
+                    msgEnd = " cannot be blank";
                 }
             }
             if (msg.Contains(prefix))
