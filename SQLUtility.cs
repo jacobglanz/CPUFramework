@@ -7,7 +7,27 @@ namespace CPUFramework
 {
     public class SQLUtility
     {
-        public static string ConnectionString = "";
+        private static string ConnectionString = "";
+
+        public static void SetConnectionString(string connString, bool tryOpen, string userId = "", string password = "")
+        {
+            ConnectionString = connString;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                SqlConnectionStringBuilder b = new();
+                b.ConnectionString = ConnectionString;
+                b.UserID = userId;
+                b.Password = password;
+                ConnectionString = b.ConnectionString;
+            }
+            if (tryOpen)
+            {
+                using (SqlConnection conn = new() { ConnectionString = ConnectionString })
+                {
+                    conn.Open();
+                }
+            }
+        }
 
         public static SqlCommand GetSQLCommand(string sproc)
         {
@@ -45,7 +65,7 @@ namespace CPUFramework
         public static void SaveDataTable(DataTable dt, string sprocName)
         {
             var rows = dt.Select("", "", DataViewRowState.Added | DataViewRowState.ModifiedCurrent);
-            foreach(DataRow r in rows)
+            foreach (DataRow r in rows)
             {
                 SaveDateRow(r, sprocName, false);
             }
@@ -226,7 +246,7 @@ namespace CPUFramework
         public static int GetValueFromFirstRowAsInt(DataTable dt, string columnName)
         {
             int value = 0;
-            if(dt.Rows.Count > 0)
+            if (dt.Rows.Count > 0)
             {
                 DataRow r = dt.Rows[0];
                 if (r[columnName] != null && r[columnName] is int)
@@ -264,7 +284,7 @@ namespace CPUFramework
         public static bool TableHasChanges(DataTable dt)
         {
             bool b = false;
-            if(dt.GetChanges() != null)
+            if (dt.GetChanges() != null)
             {
                 b = true;
             }
@@ -273,8 +293,8 @@ namespace CPUFramework
 
         public static string GetSQL(SqlCommand cmd)
         {
-#if DEBUG
             string val = "";
+#if DEBUG
             StringBuilder sb = new();
             if (cmd.Connection != null)
             {
