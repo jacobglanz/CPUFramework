@@ -273,8 +273,8 @@ namespace CPUFramework
 
         public static string GetSQL(SqlCommand cmd)
         {
-#if DEBUG
             string val = "";
+#if DEBUG
             StringBuilder sb = new();
             if (cmd.Connection != null)
             {
