@@ -18,8 +18,9 @@ namespace CPUFramework
                 s.ConnectionString = connString;
                 s.UserID = userId;
                 s.Password = password;
-                ConnectionString = s.ConnectionString;
+                connString = s.ConnectionString;
             }
+            ConnectionString = connString;
 
             using (SqlConnection conn = new(ConnectionString))
             {
