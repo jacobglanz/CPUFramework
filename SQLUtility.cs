@@ -2,12 +2,31 @@
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Text;
+using System.Configuration;
 
 namespace CPUFramework
 {
     public class SQLUtility
     {
-        public static string ConnectionString = "";
+        private static string ConnectionString = "";
+
+        public static void SetConnectionString(string connString, bool tryOopen, string userId, string password)
+        {
+            if (!string.IsNullOrEmpty(userId))
+            {
+                SqlConnectionStringBuilder s = new();
+                s.ConnectionString = connString;
+                s.UserID = userId;
+                s.Password = password;
+                ConnectionString = s.ConnectionString;
+            }
+
+            using (SqlConnection conn = new(ConnectionString))
+            {
+                conn.Open();
+            }
+
+        }
 
         public static SqlCommand GetSQLCommand(string sproc)
         {
@@ -45,7 +64,7 @@ namespace CPUFramework
         public static void SaveDataTable(DataTable dt, string sprocName)
         {
             var rows = dt.Select("", "", DataViewRowState.Added | DataViewRowState.ModifiedCurrent);
-            foreach(DataRow r in rows)
+            foreach (DataRow r in rows)
             {
                 SaveDateRow(r, sprocName, false);
             }
@@ -226,7 +245,7 @@ namespace CPUFramework
         public static int GetValueFromFirstRowAsInt(DataTable dt, string columnName)
         {
             int value = 0;
-            if(dt.Rows.Count > 0)
+            if (dt.Rows.Count > 0)
             {
                 DataRow r = dt.Rows[0];
                 if (r[columnName] != null && r[columnName] is int)
@@ -264,7 +283,7 @@ namespace CPUFramework
         public static bool TableHasChanges(DataTable dt)
         {
             bool b = false;
-            if(dt.GetChanges() != null)
+            if (dt.GetChanges() != null)
             {
                 b = true;
             }
