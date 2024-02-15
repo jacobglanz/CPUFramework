@@ -1,8 +1,15 @@
-﻿using System.Data.SqlClient;
+﻿using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Data;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Reflection;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Reflection.PortableExecutable;
 
 namespace CPUFramework
 {
@@ -136,7 +143,6 @@ namespace CPUFramework
             }
         }
 
-        protected string GetSprocName { get => _getSproc; }
         protected void InvokePropertyChanged([CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
