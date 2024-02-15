@@ -1,19 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
+﻿using System.Data.SqlClient;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Reflection.PortableExecutable;
 
 namespace CPUFramework
 {
-    public class bizObject : INotifyPropertyChanged
+    public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
     {
         string _typeName = ""; string _tableName = ""; string _getSproc = ""; string _updateSproc = ""; string _deleteSproc = ""; string _primayKeyName = ""; string _primayKeyParamName = "";
         DataTable _dataTable = new();
@@ -47,6 +40,30 @@ namespace CPUFramework
             }
             _dataTable = dt;
             return dt;
+        }
+
+        public List<T> GetList(bool includeBlank = false)
+        {
+            SqlCommand cmd = SQLUtility.GetSQLCommand(_getSproc);
+            SQLUtility.SetParamValue(cmd, "@All", 1);
+            if (includeBlank)
+            {
+                SQLUtility.SetParamValue(cmd, "@IncludeBlank", includeBlank);
+            }
+            var dt = SQLUtility.GetDataTable(cmd);
+            return GetListFromDataTable(dt);
+        }
+
+        protected List<T> GetListFromDataTable(DataTable dt)
+        {
+            List<T> lst = new();
+            foreach (DataRow r in dt.Rows)
+            {
+                T obj = new();
+                obj.LoadProps(r);
+                lst.Add(obj);
+            }
+            return lst;
         }
 
         private void LoadProps(DataRow dr)
@@ -143,6 +160,7 @@ namespace CPUFramework
             }
         }
 
+        protected string GetSprocName { get => _getSproc; }
         protected void InvokePropertyChanged([CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
