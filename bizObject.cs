@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace CPUFramework
 {
-    public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
+    public class bizObject : INotifyPropertyChanged
     {
         string _typeName = ""; string _tableName = ""; string _getSproc = ""; string _updateSproc = ""; string _deleteSproc = ""; string _primayKeyName = ""; string _primayKeyParamName = "";
         DataTable _dataTable = new();
@@ -40,27 +40,6 @@ namespace CPUFramework
             }
             _dataTable = dt;
             return dt;
-        }
-
-        public List<T> GetList(bool includeBlank = false)
-        {
-            SqlCommand cmd = SQLUtility.GetSQLCommand(_getSproc);
-            SQLUtility.SetParamValue(cmd, "@All", 1);
-            SQLUtility.SetParamValue(cmd, "@IncludeBlank", includeBlank);
-            var dt = SQLUtility.GetDataTable(cmd);
-            return GetListFromDataTable(dt);
-        }
-
-        protected List<T> GetListFromDataTable(DataTable dt)
-        {
-            List<T> lst = new();
-            foreach (DataRow r in dt.Rows)
-            {
-                T obj = new();
-                obj.LoadProps(r);
-                lst.Add(obj);
-            }
-            return lst;
         }
 
         private void LoadProps(DataRow dr)
