@@ -10,7 +10,7 @@ namespace CPUFramework
     {
         private static string ConnectionString = "";
 
-        public static void SetConnectionString(string connString, bool tryOopen, string userId, string password)
+        public static void SetConnectionString(string connString, bool tryOpen, string userId, string password)
         {
             if (!string.IsNullOrEmpty(userId))
             {
@@ -22,11 +22,13 @@ namespace CPUFramework
             }
             ConnectionString = connString;
 
-            using (SqlConnection conn = new(ConnectionString))
+            if (tryOpen)
             {
-                conn.Open();
+                using (SqlConnection conn = new(ConnectionString))
+                {
+                    conn.Open();
+                }
             }
-
         }
 
         public static SqlCommand GetSQLCommand(string sproc)
