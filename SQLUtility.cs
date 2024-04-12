@@ -1,8 +1,7 @@
 ﻿using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Text;
-using System.Configuration;
 
 namespace CPUFramework
 {
@@ -10,7 +9,7 @@ namespace CPUFramework
     {
         private static string ConnectionString = "";
 
-        public static void SetConnectionString(string connString, bool tryOpen, string userId, string password)
+        public static void SetConnectionString(string connString, bool tryOpen, string userId = "", string password = "")
         {
             if (!string.IsNullOrEmpty(userId))
             {
