@@ -28,7 +28,7 @@ namespace CPUFramework
             _properties = t.GetProperties().ToList<PropertyInfo>();
         }
 
-        public DataTable Load(int primaryKeyValue)
+        public DataTable Load(object primaryKeyValue)
         {
             DataTable dt = new();
             SqlCommand cmd = SQLUtility.GetSQLCommand(_getSproc);
@@ -105,7 +105,7 @@ namespace CPUFramework
             SqlCommand cmd = SQLUtility.GetSQLCommand(_updateSproc);
             foreach (SqlParameter param in cmd.Parameters)
             {
-                var prop = GetProp(param.ParameterName, true, false);
+                var prop = GetProp(param.ParameterName, forRead: true, forWrite: false);
                 if (prop != null)
                 {
                     object? val = prop.GetValue(this);
@@ -139,12 +139,10 @@ namespace CPUFramework
                  && (!forRead || p.CanRead)
                  && (!forWrite || p.CanWrite)
              );
-
         }
-
         private void SetProp(string propName, object? value)
         {
-            var prop = GetProp(propName, false, true);
+            var prop = GetProp(propName, forRead: false, forWrite: true);
             if (prop != null)
             {
                 if (value == DBNull.Value) { value = null; }
@@ -154,7 +152,7 @@ namespace CPUFramework
                 }
                 catch (Exception ex)
                 {
-                    string msg = $"{_typeName}.{prop.Name} type is '{prop.PropertyType}' and being set to {value?.ToString()} which is a {value?.GetType().Name}, {ex.Message}";
+                    string msg = $"{_typeName}.{prop.Name} type is '{prop.PropertyType}' and being set to '{value?.ToString()}' which is type '{value?.GetType().Name}', {ex.Message}";
                     throw new CPUDevException(msg, ex);
                 }
             }
