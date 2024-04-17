@@ -3,342 +3,341 @@ using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Text;
 
-namespace CPUFramework
+namespace CPUFramework;
+
+public class SQLUtility
 {
-    public class SQLUtility
+    private static string ConnectionString = "";
+
+    public static void SetConnectionString(string connString, bool tryOpen, string userId = "", string password = "")
     {
-        private static string ConnectionString = "";
-
-        public static void SetConnectionString(string connString, bool tryOpen, string userId = "", string password = "")
+        if (!string.IsNullOrEmpty(userId))
         {
-            if (!string.IsNullOrEmpty(userId))
-            {
-                SqlConnectionStringBuilder s = new();
-                s.ConnectionString = connString;
-                s.UserID = userId;
-                s.Password = password;
-                connString = s.ConnectionString;
-            }
-            ConnectionString = connString;
-
-            if (tryOpen)
-            {
-                using (SqlConnection conn = new(ConnectionString))
-                {
-                    conn.Open();
-                }
-            }
+            SqlConnectionStringBuilder s = new();
+            s.ConnectionString = connString;
+            s.UserID = userId;
+            s.Password = password;
+            connString = s.ConnectionString;
         }
+        ConnectionString = connString;
 
-        public static SqlCommand GetSQLCommand(string sproc)
+        if (tryOpen)
         {
-            SqlCommand cmd = new();
-
             using (SqlConnection conn = new(ConnectionString))
             {
-                cmd = new() { Connection = conn, CommandType = CommandType.StoredProcedure, CommandText = sproc };
                 conn.Open();
-                SqlCommandBuilder.DeriveParameters(cmd);
             }
-            return cmd;
         }
+    }
 
-        public static DataTable GetDataTable(SqlCommand cmd)
+    public static SqlCommand GetSQLCommand(string sproc)
+    {
+        SqlCommand cmd = new();
+
+        using (SqlConnection conn = new(ConnectionString))
         {
-            return DoExecuteSQL(cmd, true);
+            cmd = new() { Connection = conn, CommandType = CommandType.StoredProcedure, CommandText = sproc };
+            conn.Open();
+            SqlCommandBuilder.DeriveParameters(cmd);
         }
+        return cmd;
+    }
 
-        public static DataTable GetDataTable(string sqlStatment)
+    public static DataTable GetDataTable(SqlCommand cmd)
+    {
+        return DoExecuteSQL(cmd, true);
+    }
+
+    public static DataTable GetDataTable(string sqlStatment)
+    {
+        return DoExecuteSQL(new SqlCommand(sqlStatment), true);
+    }
+
+    public static void ExecuteSQL(SqlCommand cmd)
+    {
+        DoExecuteSQL(cmd, false);
+    }
+
+    public static void ExecuteSQL(string sql)
+    {
+        GetDataTable(sql);
+    }
+
+    public static void SaveDataTable(DataTable dt, string sprocName)
+    {
+        var rows = dt.Select("", "", DataViewRowState.Added | DataViewRowState.ModifiedCurrent);
+        foreach (DataRow r in rows)
         {
-            return DoExecuteSQL(new SqlCommand(sqlStatment), true);
+            SaveDateRow(r, sprocName, false);
         }
+        dt.AcceptChanges();
+    }
 
-        public static void ExecuteSQL(SqlCommand cmd)
+    public static void SaveDateRow(DataRow dr, string sprocName, bool acceptChanges = true)
+    {
+        SqlCommand cmd = GetSQLCommand(sprocName);
+        foreach (DataColumn column in dr.Table.Columns)
         {
-            DoExecuteSQL(cmd, false);
-        }
-
-        public static void ExecuteSQL(string sql)
-        {
-            GetDataTable(sql);
-        }
-
-        public static void SaveDataTable(DataTable dt, string sprocName)
-        {
-            var rows = dt.Select("", "", DataViewRowState.Added | DataViewRowState.ModifiedCurrent);
-            foreach (DataRow r in rows)
+            string paramNsme = "@" + column;
+            if (cmd.Parameters.Contains(paramNsme))
             {
-                SaveDateRow(r, sprocName, false);
+                SetParamValue(cmd, paramNsme, dr[column.ColumnName]);
             }
-            dt.AcceptChanges();
         }
-
-        public static void SaveDateRow(DataRow dr, string sprocName, bool acceptChanges = true)
+        DoExecuteSQL(cmd, false);
+        foreach (SqlParameter p in cmd.Parameters)
         {
-            SqlCommand cmd = GetSQLCommand(sprocName);
-            foreach (DataColumn column in dr.Table.Columns)
+            if (p.Direction == ParameterDirection.InputOutput)
             {
-                string paramNsme = "@" + column;
-                if (cmd.Parameters.Contains(paramNsme))
+                string col = p.ParameterName.Substring(1);
+                if (dr.Table.Columns.Contains(col))
                 {
-                    SetParamValue(cmd, paramNsme, dr[column.ColumnName]);
+                    dr[col] = p.Value;
                 }
             }
-            DoExecuteSQL(cmd, false);
+        }
+        if (acceptChanges)
+        {
+            dr.Table.AcceptChanges();
+        }
+    }
+
+    private static DataTable DoExecuteSQL(SqlCommand cmd, bool loadDataTable)
+    {
+        DataTable dt = new();
+        using (SqlConnection conn = new(ConnectionString))
+        {
+            cmd.Connection = conn;
+            conn.Open();
+            Debug.Print(GetSQL(cmd));
+            try
+            {
+                SqlDataReader dr = cmd.ExecuteReader();
+                CheckReturnValue(cmd);
+                if (loadDataTable)
+                {
+                    dt.Load(dr);
+                }
+            }
+            catch (SqlException ex)
+            {
+                string msg = ParseConstraintMsg(ex.Message);
+                throw new Exception(msg);
+            }
+            catch (InvalidCastException ex)
+            {
+                throw new Exception($"{cmd.CommandText}: {ex.Message}");
+            }
+        }
+        SetAllColumnsProperties(dt);
+        return dt;
+    }
+
+    private static void CheckReturnValue(SqlCommand cmd)
+    {
+        int returnValue = 0;
+        string msg = "";
+        if (cmd.CommandType == CommandType.StoredProcedure)
+        {
+
             foreach (SqlParameter p in cmd.Parameters)
             {
-                if (p.Direction == ParameterDirection.InputOutput)
+                if (p.Direction == ParameterDirection.ReturnValue)
                 {
-                    string col = p.ParameterName.Substring(1);
-                    if (dr.Table.Columns.Contains(col))
+                    if (p.Value != null)
                     {
-                        dr[col] = p.Value;
+                        returnValue = (int)p.Value;
+                    }
+                }
+                else if (p.ParameterName.ToLower() == "@message")
+                {
+                    if (p.Value != null)
+                    {
+                        msg = p.Value.ToString();
                     }
                 }
             }
-            if (acceptChanges)
+            if (msg == "")
             {
-                dr.Table.AcceptChanges();
+                msg = $"{cmd.CommandText} did not do requested action";
+            }
+            if (returnValue == 1)
+            {
+                throw new Exception(msg);
             }
         }
+    }
 
-        private static DataTable DoExecuteSQL(SqlCommand cmd, bool loadDataTable)
+    public static void SetParamValue(SqlCommand cmd, string paramName, object value)
+    {
+        if (!paramName.StartsWith("@")) { paramName = "@" + paramName; }
+        if (cmd.Parameters.Contains(paramName))
         {
-            DataTable dt = new();
-            using (SqlConnection conn = new(ConnectionString))
+            try
             {
-                cmd.Connection = conn;
-                conn.Open();
-                Debug.Print(GetSQL(cmd));
-                try
-                {
-                    SqlDataReader dr = cmd.ExecuteReader();
-                    CheckReturnValue(cmd);
-                    if (loadDataTable)
-                    {
-                        dt.Load(dr);
-                    }
-                }
-                catch (SqlException ex)
-                {
-                    string msg = ParseConstraintMsg(ex.Message);
-                    throw new Exception(msg);
-                }
-                catch (InvalidCastException ex)
-                {
-                    throw new Exception($"{cmd.CommandText}: {ex.Message}");
-                }
+                cmd.Parameters[paramName].Value = value;
             }
-            SetAllColumnsProperties(dt);
-            return dt;
-        }
-
-        private static void CheckReturnValue(SqlCommand cmd)
-        {
-            int returnValue = 0;
-            string msg = "";
-            if (cmd.CommandType == CommandType.StoredProcedure)
+            catch (Exception ex)
             {
-
-                foreach (SqlParameter p in cmd.Parameters)
-                {
-                    if (p.Direction == ParameterDirection.ReturnValue)
-                    {
-                        if (p.Value != null)
-                        {
-                            returnValue = (int)p.Value;
-                        }
-                    }
-                    else if (p.ParameterName.ToLower() == "@message")
-                    {
-                        if (p.Value != null)
-                        {
-                            msg = p.Value.ToString();
-                        }
-                    }
-                }
-                if (msg == "")
-                {
-                    msg = $"{cmd.CommandText} did not do requested action";
-                }
-                if (returnValue == 1)
-                {
-                    throw new Exception(msg);
-                }
+                throw new Exception($"{cmd.CommandText}: {ex.Message}", ex);
             }
         }
+    }
 
-        public static void SetParamValue(SqlCommand cmd, string paramName, object value)
+    private static string ParseConstraintMsg(string msg)
+    {
+        string origMsg = msg;
+        string prefix = "ck_";
+        string msgEnd = "";
+        string notNullPrefix = "Cannot insert the value NULL into column ";
+        if (!msg.Contains(prefix))
         {
-            if (!paramName.StartsWith("@")) { paramName = "@" + paramName; }
-            if (cmd.Parameters.Contains(paramName))
+            if (msg.Contains("u_"))
             {
-                try
-                {
-                    cmd.Parameters[paramName].Value = value;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"{cmd.CommandText}: {ex.Message}", ex);
-                }
+                prefix = "u_";
+                msgEnd = " must be unique.";
+            }
+            else if (msg.Contains("f_"))
+            {
+                prefix = "f_";
+            }
+            else if (msg.Contains(notNullPrefix))
+            {
+                prefix = "Cannot insert the value NULL into column '";
+                msgEnd = " cannot be blank";
             }
         }
-
-        private static string ParseConstraintMsg(string msg)
+        if (msg.Contains(prefix))
         {
-            string origMsg = msg;
-            string prefix = "ck_";
-            string msgEnd = "";
-            string notNullPrefix = "Cannot insert the value NULL into column ";
-            if (!msg.Contains(prefix))
+            msg = msg.Replace("\"", "'");
+            int position = msg.IndexOf(prefix) + prefix.Length;
+            msg = msg.Substring(position);
+            position = msg.IndexOf("'");
+            if (position == -1)
             {
-                if (msg.Contains("u_"))
-                {
-                    prefix = "u_";
-                    msgEnd = " must be unique.";
-                }
-                else if (msg.Contains("f_"))
-                {
-                    prefix = "f_";
-                }
-                else if (msg.Contains(notNullPrefix))
-                {
-                    prefix = "Cannot insert the value NULL into column '";
-                    msgEnd = " cannot be blank";
-                }
-            }
-            if (msg.Contains(prefix))
-            {
-                msg = msg.Replace("\"", "'");
-                int position = msg.IndexOf(prefix) + prefix.Length;
-                msg = msg.Substring(position);
-                position = msg.IndexOf("'");
-                if (position == -1)
-                {
-                    msg = origMsg;
-                }
-                else
-                {
-                    msg = msg.Substring(0, position);
-                    msg = msg.Replace("_", " ") + msgEnd;
-                    if (prefix == "f_")
-                    {
-                        var words = msg.Split(" ");
-                        if (words.Length > 1)
-                        {
-                            msg = $"Cannot delete {words[0]} becaue it has a related {words[1]} record";
-                        }
-                    }
-                }
-            }
-            return msg;
-        }
-
-        public static int GetFirstColumnFirstRowValue(string sql)
-        {
-            int n = 0;
-            DataTable dt = GetDataTable(sql);
-            if (dt.Columns.Count > 0 && dt.Rows.Count > 0)
-            {
-                if (dt.Rows[0][0] != DBNull.Value)
-                {
-                    int.TryParse(dt.Rows[0][0].ToString(), out n);
-                }
-            }
-            return n;
-        }
-
-        public static int GetValueFromFirstRowAsInt(DataTable dt, string columnName)
-        {
-            int value = 0;
-            if (dt.Rows.Count > 0)
-            {
-                DataRow r = dt.Rows[0];
-                if (r[columnName] != null && r[columnName] is int)
-                {
-                    value = (int)r[columnName];
-
-                }
-            }
-            return value;
-        }
-
-        public static string GetValueFromFirstRowAsString(DataTable dt, string columnName)
-        {
-            string value = "";
-            if (dt.Rows != null && dt.Rows.Count > 0)
-            {
-                DataRow r = dt.Rows[0];
-                if (r[columnName] != null && r[columnName] is string)
-                {
-                    value = (string)r[columnName];
-                }
-            }
-            return value;
-        }
-
-        private static void SetAllColumnsProperties(DataTable dt)
-        {
-            foreach (DataColumn c in dt.Columns)
-            {
-                c.AllowDBNull = true;
-                c.AutoIncrement = false;
-            }
-        }
-
-        public static bool TableHasChanges(DataTable dt)
-        {
-            bool b = false;
-            if (dt.GetChanges() != null)
-            {
-                b = true;
-            }
-            return b;
-        }
-
-        public static string GetSQL(SqlCommand cmd)
-        {
-            string val = "";
-#if DEBUG
-            StringBuilder sb = new();
-            if (cmd.Connection != null)
-            {
-                sb.AppendLine($"--{cmd.Connection.DataSource}");
-                sb.AppendLine($"use {cmd.Connection.Database}");
-                sb.AppendLine("go");
-            }
-            if (cmd.CommandType == CommandType.StoredProcedure)
-            {
-                sb.AppendLine($"exec {cmd.CommandText}");
-                int countdown = cmd.Parameters.Count;
-                string comma = ",";
-                foreach (SqlParameter p in cmd.Parameters)
-                {
-                    if (p.Direction != ParameterDirection.ReturnValue)
-                    {
-                        comma = countdown == 1 ? "" : comma;
-                        sb.AppendLine($"{p.ParameterName} = {(p.Value == null ? "null" : p.Value.ToString())}{comma}");
-                    }
-                    countdown--;
-                }
+                msg = origMsg;
             }
             else
             {
-                sb.AppendLine(cmd.CommandText);
-            }
-            val = sb.ToString();
-#endif
-            return val;
-        }
-
-        public static void DebugPrintDataTable(DataTable dt)
-        {
-            foreach (DataRow r in dt.Rows)
-            {
-                foreach (DataColumn c in dt.Columns)
+                msg = msg.Substring(0, position);
+                msg = msg.Replace("_", " ") + msgEnd;
+                if (prefix == "f_")
                 {
-                    Debug.Print(c.ColumnName + " = " + r[c.ColumnName]);
+                    var words = msg.Split(" ");
+                    if (words.Length > 1)
+                    {
+                        msg = $"Cannot delete {words[0]} becaue it has a related {words[1]} record";
+                    }
                 }
+            }
+        }
+        return msg;
+    }
+
+    public static int GetFirstColumnFirstRowValue(string sql)
+    {
+        int n = 0;
+        DataTable dt = GetDataTable(sql);
+        if (dt.Columns.Count > 0 && dt.Rows.Count > 0)
+        {
+            if (dt.Rows[0][0] != DBNull.Value)
+            {
+                int.TryParse(dt.Rows[0][0].ToString(), out n);
+            }
+        }
+        return n;
+    }
+
+    public static int GetValueFromFirstRowAsInt(DataTable dt, string columnName)
+    {
+        int value = 0;
+        if (dt.Rows.Count > 0)
+        {
+            DataRow r = dt.Rows[0];
+            if (r[columnName] != null && r[columnName] is int)
+            {
+                value = (int)r[columnName];
+
+            }
+        }
+        return value;
+    }
+
+    public static string GetValueFromFirstRowAsString(DataTable dt, string columnName)
+    {
+        string value = "";
+        if (dt.Rows != null && dt.Rows.Count > 0)
+        {
+            DataRow r = dt.Rows[0];
+            if (r[columnName] != null && r[columnName] is string)
+            {
+                value = (string)r[columnName];
+            }
+        }
+        return value;
+    }
+
+    private static void SetAllColumnsProperties(DataTable dt)
+    {
+        foreach (DataColumn c in dt.Columns)
+        {
+            c.AllowDBNull = true;
+            c.AutoIncrement = false;
+        }
+    }
+
+    public static bool TableHasChanges(DataTable dt)
+    {
+        bool b = false;
+        if (dt.GetChanges() != null)
+        {
+            b = true;
+        }
+        return b;
+    }
+
+    public static string GetSQL(SqlCommand cmd)
+    {
+        string val = "";
+#if DEBUG
+        StringBuilder sb = new();
+        if (cmd.Connection != null)
+        {
+            sb.AppendLine($"--{cmd.Connection.DataSource}");
+            sb.AppendLine($"use {cmd.Connection.Database}");
+            sb.AppendLine("go");
+        }
+        if (cmd.CommandType == CommandType.StoredProcedure)
+        {
+            sb.AppendLine($"exec {cmd.CommandText}");
+            int countdown = cmd.Parameters.Count;
+            string comma = ",";
+            foreach (SqlParameter p in cmd.Parameters)
+            {
+                if (p.Direction != ParameterDirection.ReturnValue)
+                {
+                    comma = countdown == 1 ? "" : comma;
+                    sb.AppendLine($"{p.ParameterName} = {(p.Value == null ? "null" : p.Value.ToString())}{comma}");
+                }
+                countdown--;
+            }
+        }
+        else
+        {
+            sb.AppendLine(cmd.CommandText);
+        }
+        val = sb.ToString();
+#endif
+        return val;
+    }
+
+    public static void DebugPrintDataTable(DataTable dt)
+    {
+        foreach (DataRow r in dt.Rows)
+        {
+            foreach (DataColumn c in dt.Columns)
+            {
+                Debug.Print(c.ColumnName + " = " + r[c.ColumnName]);
             }
         }
     }
