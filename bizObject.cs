@@ -8,7 +8,7 @@ namespace CPUFramework;
 
 public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
 {
-    string _typeName = ""; string _tableName = ""; string _getSproc = ""; string _updateSproc = ""; string _deleteSproc = ""; string _primayKeyName = ""; string _primayKeyParamName = "";
+    string _typeName = ""; string _tableName = ""; string _getSproc = ""; string _updateSproc = ""; string _deleteSproc = ""; string _primaryKeyName = ""; string _primaryKeyParamName = "";
     DataTable _dataTable = new();
     List<PropertyInfo> _properties = new();
 
@@ -23,8 +23,8 @@ public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
         _getSproc = _tableName + "Get";
         _updateSproc = _tableName + "Update";
         _deleteSproc = _tableName + "Delete";
-        _primayKeyName = _tableName + "Id";
-        _primayKeyParamName = "@" + _primayKeyName;
+        _primaryKeyName = _tableName + "Id";
+        _primaryKeyParamName = "@" + _primaryKeyName;
         _properties = t.GetProperties().ToList<PropertyInfo>();
     }
 
@@ -32,7 +32,7 @@ public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
     {
         DataTable dt = new();
         SqlCommand cmd = SQLUtility.GetSQLCommand(_getSproc);
-        SQLUtility.SetParamValue(cmd, _primayKeyParamName, primaryKeyValue);
+        SQLUtility.SetParamValue(cmd, _primaryKeyParamName, primaryKeyValue);
         dt = SQLUtility.GetDataTable(cmd);
         if (dt.Rows.Count > 0)
         {
@@ -76,7 +76,7 @@ public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
 
     public void Delete()
     {
-        PropertyInfo? prop = GetProp(_primayKeyName, true, false);
+        PropertyInfo? prop = GetProp(_primaryKeyName, true, false);
         if (prop != null)
         {
             int? id = (int?)prop.GetValue(this);
@@ -90,13 +90,13 @@ public class bizObject<T> : INotifyPropertyChanged where T : bizObject<T>, new()
     public void Delete(int id)
     {
         SqlCommand cmd = SQLUtility.GetSQLCommand(_deleteSproc);
-        SQLUtility.SetParamValue(cmd, _primayKeyParamName, id);
+        SQLUtility.SetParamValue(cmd, _primaryKeyParamName, id);
         SQLUtility.ExecuteSQL(cmd);
     }
 
     public void Delete(DataTable dataTable)
     {
-        int id = (int)dataTable.Rows[0][_primayKeyName];
+        int id = (int)dataTable.Rows[0][_primaryKeyName];
         this.Delete(id);
     }
 

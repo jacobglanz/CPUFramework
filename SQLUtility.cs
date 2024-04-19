@@ -2,6 +2,9 @@
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Text;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
 
 namespace CPUFramework;
 
@@ -340,5 +343,37 @@ public class SQLUtility
                 Debug.Print(c.ColumnName + " = " + r[c.ColumnName]);
             }
         }
+    }
+
+    public static List<T> TryGetListFromDataTable<T>(DataTable dt) where T : new()
+    {
+        List<T> list = new();
+
+        foreach (DataRow dr in dt.Rows)
+        {
+            T t = new();
+            list.Add(t);
+            var properties = t.GetType().GetProperties().ToList();
+            foreach (DataColumn dc in dt.Columns)
+            {
+                PropertyInfo? property = properties.FirstOrDefault(p =>
+                    p.Name.ToLower() == dc.ColumnName.ToLower()
+                    && p.CanWrite == true
+                );
+
+                if (property != null)
+                {
+                    object? value = dr[dc];
+                    if (value == DBNull.Value) { value = null; }
+                    try
+                    {
+                        property.SetValue(t, value);
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        return list;
     }
 }
