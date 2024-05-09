@@ -51,9 +51,9 @@ public class SQLUtility
         return DoExecuteSQL(cmd, true);
     }
 
-    public static DataTable GetDataTable(string sqlStatment)
+    public static DataTable GetDataTable(string sqlStatement)
     {
-        return DoExecuteSQL(new SqlCommand(sqlStatment), true);
+        return DoExecuteSQL(new SqlCommand(sqlStatement), true);
     }
 
     public static void ExecuteSQL(SqlCommand cmd)
@@ -81,10 +81,10 @@ public class SQLUtility
         SqlCommand cmd = GetSQLCommand(sprocName);
         foreach (DataColumn column in dr.Table.Columns)
         {
-            string paramNsme = "@" + column;
-            if (cmd.Parameters.Contains(paramNsme))
+            string paramName = "@" + column;
+            if (cmd.Parameters.Contains(paramName))
             {
-                SetParamValue(cmd, paramNsme, dr[column.ColumnName]);
+                SetParamValue(cmd, paramName, dr[column.ColumnName]);
             }
         }
         DoExecuteSQL(cmd, false);
@@ -189,7 +189,7 @@ public class SQLUtility
 
     private static string ParseConstraintMsg(string msg)
     {
-        string origMsg = msg;
+        string originalMsg = msg;
         string prefix = "ck_";
         string msgEnd = "";
         string notNullPrefix = "Cannot insert the value NULL into column ";
@@ -218,7 +218,7 @@ public class SQLUtility
             position = msg.IndexOf("'");
             if (position == -1)
             {
-                msg = origMsg;
+                msg = originalMsg;
             }
             else
             {
@@ -229,7 +229,7 @@ public class SQLUtility
                     var words = msg.Split(" ");
                     if (words.Length > 1)
                     {
-                        msg = $"Cannot delete {words[0]} becaue it has a related {words[1]} record";
+                        msg = $"Cannot delete {words[0]} because it has a related {words[1]} record";
                     }
                 }
             }
@@ -245,7 +245,7 @@ public class SQLUtility
         {
             if (dt.Rows[0][0] != DBNull.Value)
             {
-                int.TryParse(dt.Rows[0][0].ToString(), out n);
+                _ = int.TryParse(dt.Rows[0][0].ToString(), out n);
             }
         }
         return n;
@@ -272,9 +272,16 @@ public class SQLUtility
         if (dt.Rows != null && dt.Rows.Count > 0)
         {
             DataRow r = dt.Rows[0];
-            if (r[columnName] != null && r[columnName] is string)
+            if (r[columnName] != null)
             {
-                value = (string)r[columnName];
+                if (r[columnName] is string s)
+                {
+                    value = s;
+                }
+                else if(r[columnName] is Guid guid)
+                {
+                    value = guid.ToString();
+                }
             }
         }
         return value;
@@ -348,17 +355,17 @@ public class SQLUtility
     public static List<T> TryGetListFromDataTable<T>(DataTable dt) where T : new()
     {
         List<T> list = new();
+        List<PropertyInfo> properties = typeof(T).GetType().GetProperties().ToList();
 
         foreach (DataRow dr in dt.Rows)
         {
             T t = new();
             list.Add(t);
-            var properties = t.GetType().GetProperties().ToList();
             foreach (DataColumn dc in dt.Columns)
             {
                 PropertyInfo? property = properties.FirstOrDefault(p =>
                     p.Name.ToLower() == dc.ColumnName.ToLower()
-                    && p.CanWrite == true
+                    && p.CanWrite
                 );
 
                 if (property != null)
