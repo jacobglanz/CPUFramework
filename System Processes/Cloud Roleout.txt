@@ -1,0 +1,18 @@
+Azure Roleout
+--Create Resources:
+Create Subscription Named {Project Name}-Sub
+Create Budget
+Create Resource Group {Project Name}-RG
+Create Sql Server Named {Project Name}
+	Set mail user to be managed by Azure Entra Id
+Create Database called {Project Name}DB
+Create App Service Calle {Project Name}App
+	Give Sql Server access to the AppService, go to App Service then Settings > Identity > System Assigned Set Status to On
+	Then when setting a connection string in the app service i don't need any credentials, because Azure Entra Id knows that the APpService has access to the Sql Server
+Create KeyVault named {Project Name}-Vault
+	In the KeyVault Access control (IAM) Add a new Role assignment, select role "Key Vault Secrets User", then under Memeber select Managed Identity then click Select Members the select subscription, then in Managed Identity select App Service then select the app service created before
+
+--Roleout code:
+Push commit to GH Roleout-{YYYY-MM-DD-HH-MM}
+Roleout DB files, Tables, Functions, Triggers, Sprocs
+Code: in Visual Studio Right Click on the mail project Click publish........

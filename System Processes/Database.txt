@@ -1,0 +1,32 @@
+--After Creating Table
+Add:
+	trigger to update LastModified Column
+	Get Sproc
+	Update Sproc
+		Convert non nullable varchar from null to empty string in order to get database constraint error instead of null error
+	(Delete Sproc)
+	bizClass
+
+
+--When Adding a New Column
+Try adding additional CONSTRAINTS, for example if it's a date and it has to be later then another column's date, or if it's a number and it has to be less then another column's number
+Get Sproc: if needed add it to the columns ( select {NewColumn} from {Table} )
+Update Sproc:
+	Add the new column as a PARAM
+	Add the new column to the INSERT statement
+	Add the new column to the UPDATE statement
+bizTable
+	Add the new column as a class PROPERTY
+	Add DTO Mappings
+
+
+--When Deleting a Column
+Remove constraints that contains deleted column
+Get Sproc: Remove column
+Update Sproc:
+	Remove deleted column's PARAM
+	Remove deleted column from the INSERT statement
+	Remove deleted column from the UPDATE statement
+bizTable
+	Remove the deleted column's class PROPERTY
+	Remove DTO Mappings
